@@ -2,32 +2,45 @@
     Module: GA
     Author: ShaoHaozhou
     motto: Self-discipline, self-improvement, self-love
-    Date: 2020/12/23
-    Introduce: The BP neural network can set the number of hidden layers,
-            the number of neurons in each layer and the number of neurons in the output layer
-    介绍: 可设置隐藏层的层数和每层神经元的数量、输出层的神经元数量的BP神经网络(实现自动化)
+    Date: 2021/4/20
+    Introduce: This is the Genetic Algorithm which contains discrete and continuous two types [DGA and CGA]
+    介绍: 这是一种包含离散和连续两种类型的遗传算法。 [DGA, CGA]
 """
+
 import numpy as np
 import matplotlib.pyplot as plt
 
-"""
-    GA:
-        1. 离散GA
-        2. 连续GA
-"""
-
 
 class GABase(object):
+    """
+        Introduce:
+            This is the base class of genetic algorithms
+        介绍：
+            这是遗传算法的基类(GABase)
+
+        arg:
+            f: the objective function
+            sv: coefficient of Selection
+            cv: coefficient of variation
+        参数:
+            f: 目标函数
+            sv: 选择系数
+            cv: 变异系数
+    """
     def __init__(self, f, sv, cv):
         self.f = f
         self.sv = sv
         self.cv = cv
-        self.pop = None
-        self.best = [None, np.inf]
-        self.fit_ = None
-        self.for_ = None
+        self.pop = None  # 种群
+        self.best = [None, np.inf]  # 最优个体及其适应度(目标函数值)
+        self.fit_ = None   # 每轮最优适应度的记录(作图用)
+        self.for_ = None   # 轮数
 
     def initialize(self):
+        """
+            This is the initialization function.
+            初始化函数
+        """
         pass
 
     def fitness(self):
@@ -38,6 +51,11 @@ class GABase(object):
         return np.apply_along_axis(self.f, 1, self.pop)
 
     def select(self, fitness):
+        """
+            This is the selection function.Through the roulette algorithm to eliminate
+             the number of times for the current population is 1/10.
+            选择函数，通过轮盘赌算法进行淘汰，淘汰次数为当前种群的1/10。
+        """
         min_pos = np.argmin(fitness)
         if fitness[min_pos] < self.best[1]:
             self.best = [self.pop[min_pos], fitness[min_pos]]
@@ -65,12 +83,24 @@ class GABase(object):
         self.pop = np.delete(self.pop, list(out), axis=0)
 
     def cross(self):
+        """
+            This is cross function.
+            交叉函数
+        """
         pass
 
     def mutate(self):
+        """
+            This is mutation function.
+            变异函数
+        """
         pass
 
     def fit(self, for_=1000):
+        """
+            This is opening function to start the train of GA.
+            启动函数
+        """
         self.fit_ = np.array([])
         self.for_ = for_
         self.best = [None, np.inf]
@@ -82,6 +112,10 @@ class GABase(object):
             self.fit_ = np.append(self.fit_, self.best[1])
 
     def draw_fit(self):
+        """
+            This is drawing function to draw the fitness line chart.
+            画图函数 => 画出适应度折线图
+        """
         if self.fit_ is None:
             raise ValueError("you should fit firstly!")
         x = np.linspace(0, self.for_, self.for_)
@@ -91,6 +125,29 @@ class GABase(object):
 
 
 class DGA(GABase):
+    """
+        Introduce:
+            This is a discrete type of genetic algorithm
+        介绍：
+            这是离散类型的遗传算法(DGA)
+
+        arg:
+            f: the objective function
+            sv: coefficient of Selection
+            cv: coefficient of variation
+            kinds: the type of individual genes
+            max_pop: the max population
+            length: the number of genes contained in an individual
+            can_replace: whether duplicate genes can be present in an individual
+        参数:
+            f: 目标函数
+            sv: 选择系数
+            cv: 变异系数
+            kinds: 个体基因的种类
+            max_pop: 最大种群数量
+            length: 一个个体所包含的基因
+            can_replace: 一个个体中是否可以出现重复的基因
+    """
     def __init__(self, f, cv, sv, kinds, max_pop, length, can_replace=False):
         super().__init__(f, cv, sv)
         self.kinds = list(kinds)
@@ -99,8 +156,13 @@ class DGA(GABase):
         self.can_replace = can_replace
 
     def initialize(self):
+        """
+            There are two types of initialization: repeatable and non-repeatable. The default
+             setting for initializing the population is 1/10 of the maximum population.
+            分成了可重复和不可重复两种初始化方式，初始化种群这里默认设置为最大种群数的1/10。
+        """
         if self.can_replace is True:
-            self.pop = np.random.choice(self.kinds, [self.max_pop // 10, self.length])
+            self.pop = np.random.choice(self.kinds, [self.max_pop // 10, self.length])   # 使用整除获得整数
         else:
             self.pop = np.ones([self.max_pop // 10, self.length]) * np.inf
             for i in range(self.max_pop // 10):
@@ -118,29 +180,41 @@ class DGA(GABase):
         super().select(fitness)
 
     def cross(self):
+        """
+            In the process of crossover inheritance, individuals before and
+             after each other are randomly selected at different locations to generate two individuals
+            交叉遗传过程采取随机选取不同位置对前后的个体进行交叉遗传，生成两个个体。
+        """
         if self.can_replace is True:
             for i in range(self.pop.shape[0]):
                 if self.max_pop <= self.pop.shape[0]:
                     break
                 if np.random.rand() < self.sv:
                     selected = np.random.randint(self.length, size=[1, np.random.randint(self.length)])
-                    child = self.pop[i].copy()
-                    child[selected] = self.pop[(i+1) % self.pop.shape[0]][selected]
+                    child = [self.pop[i].copy(), self.pop[(i+1) % self.pop.shape[0]]]
+                    child[0][selected] = self.pop[(i+1) % self.pop.shape[0]][selected]
+                    child[1][selected] = self.pop[i][selected]
                     self.pop = np.vstack((self.pop, child))
         else:
             for i in range(self.pop.shape[0]):
                 if self.max_pop <= self.pop.shape[0]:
                     break
-                if np.random.rand() < self.sv:
+                if np.random.rand() < self.sv:  # 使用随机数进行判断
                     selected = np.random.randint(self.length, size=[1, np.random.randint(self.length)])
-                    child = self.pop[i].copy()
+                    child = [self.pop[i].copy(), self.pop[(i+1) % self.pop.shape[0]]]
                     for j in selected[0]:
-                        if child[j] == self.pop[(i+1) % self.pop.shape[0]][j]:
-                            child[j] = self.pop[(i+1) % self.pop.shape[0]][j]
+                        if self.pop[(i+1) % self.pop.shape[0]][j] not in child[0]:
+                            child[0][j] = self.pop[(i+1) % self.pop.shape[0]][j]
+                        if self.pop[i][j] not in child[1]:
+                            child[1][j] = self.pop[i][j]
 
-                    self.pop = np.vstack((self.pop, child))
+                    self.pop = np.vstack((self.pop, child))  # 对种群进行拼接
 
     def mutate(self):
+        """
+            The mutation process also uses random numbers to make changes to individual genes.
+            变异过程也是采用随机数对单个的基因进行更改。
+        """
         if self.can_replace:
             for i in range(self.pop.shape[0]):
                 if np.random.rand() < self.cv:
@@ -164,7 +238,27 @@ class DGA(GABase):
 
 
 class CGA(GABase):
+    """
+        Introduce:
+            This is a continuous type of genetic algorithm
+        介绍：
+            这是连续类型的遗传算法(CGA)
 
+        arg:
+            f: the objective function
+            sv: coefficient of Selection
+            cv: coefficient of variation
+            max_pop: the max population
+            length: the number of genes contained in an individual
+            extent: limit the scope of a single gene
+        参数:
+            f: 目标函数
+            sv: 选择系数
+            cv: 变异系数
+            max_pop: 最大种群数量
+            length: 一个个体所包含的基因数量
+            extent: 单个基因的范围限定
+    """
     def __init__(self, f, sv, cv, max_pop, length, extent):
         super().__init__(f, sv, cv)
         self.max_pop = max_pop
@@ -172,6 +266,10 @@ class CGA(GABase):
         self.extent = extent
 
     def initialize(self):
+        """
+            Generate a population within a range.
+            生成在范围之内的种群。
+        """
         self.pop = self.extent[0] + np.random.rand(self.max_pop // 10, self.length) * (self.extent[1] - self.extent[0])
 
     def fitness(self):
@@ -186,8 +284,9 @@ class CGA(GABase):
                 break
             if np.random.rand() < self.sv:
                 selected = np.random.randint(self.length, size=[1, np.random.randint(self.length)])
-                child = self.pop[i].copy()
-                child[selected] = self.pop[(i+1) % self.pop.shape[0]][selected]
+                child = [self.pop[i].copy(), self.pop[(i + 1) % self.pop.shape[0]]]
+                child[0][selected] = self.pop[(i + 1) % self.pop.shape[0]][selected]
+                child[1][selected] = self.pop[i][selected]
                 self.pop = np.vstack((self.pop, child))
 
     def mutate(self):
@@ -255,3 +354,4 @@ if __name__ == "__main__":
     ga = GA(f, cv=0.1, sv=0.1, max_pop=100, length=5, extent_or_kinds=[0, 10])
     ga.fit(1000)
     ga.draw_fit()
+    print(ga.result())
